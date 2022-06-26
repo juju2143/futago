@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "@highlightjs/cdn-assets": "^11.5.1",
+    "ansi_up": "^5.1.0"
+  }
+}

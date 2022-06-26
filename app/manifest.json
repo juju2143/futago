@@ -1,0 +1,44 @@
+{
+  "name": "Futago, a Gemini browser",
+  "short_name": "Futago",
+  "version": "0.0.0.1",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtnjUUC70riIYG3P+MtCRw8CT2IGXI0f8K5AwBR1b5lzuWassVjpZQZ+pS73mDUL3Pzac47SreH0LSZHozUnXYmzMHzSwFDtDI5xxyJz5VXoBUt4CNQkwXl3u8ytXx5AwrOumBLjCkMnMzfN0fjODgJ97HiKjFFhauRbIeaKdMUprr8XQtNu8iLYcjWhMEpAaHWl12O/0WordeqIa+1wZtRaDBLjZ6N6jek6jHHJbQ0ggN97TMEO1Dra2HNrKcV54LqEBqAu/Q0SBD6vNCPbP90nGdvDS5YueWpkaCPwjsw3MwkrcFPxux5rd/vnI3gc3yb25/L8uq1FozIHbY0UcFQIDAQAB",
+  "omnibox": { "keyword" : "gemini" },
+  "manifest_version": 3,
+  "description": "Navigate Geminispace with a simple browser extension, no proxy needed",
+  "options_page": "main.html",
+  "icons": {
+    "16": "/images/logo16.png",
+    "32": "/images/logo32.png",
+    "48": "/images/logo48.png",
+    "128": "/images/logo128.png"
+  },
+  "action": {
+    "default_popup": "main.html",
+    "default_icon": {
+      "16": "/images/logo16.png",
+      "32": "/images/logo32.png",
+      "48": "/images/logo48.png",
+      "128": "/images/logo128.png"
+    }
+  },
+  "content_scripts": [
+      {
+          "matches": ["<all_urls>"],
+          "js": ["/content.js"]
+      }
+  ],
+  "protocol_handlers": [
+      {
+          "protocol"   : "ext+gemini",
+          "name"       : "Gemini",
+          "uriTemplate": "handler.html?%s"
+      }
+  ],
+  "permissions": [
+    "activeTab",
+    "contextMenus",
+    "nativeMessaging",
+    "storage"
+  ]
+}
