@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', function () {
     chrome.storage.sync.get({
         defaultPage: 'gemini://gemini.circumlunar.space/',
         redirectLimit: 5,
+        css: '',
     }, main);
 });
 
@@ -23,6 +24,10 @@ function main(opts) {
         location.search = "?"+options.defaultPage;
         // TODO: go to search engine? tell user the url is wrong? try to figure it out?
     }
+
+    var css = createNode('style', options.css);
+    document.head.appendChild(css);
+    document.title = url;
 
     var port = chrome.runtime.connectNative('ca.a39.futago');
     var header = "";
@@ -53,7 +58,6 @@ function main(opts) {
     });
     port.postMessage({"url": url}); // TODO: send client certificate here as well
     console.log("Started request to " + url);
-    document.title = url;
 }
 
 function parseGemini(header, body)
@@ -99,6 +103,8 @@ function parseGemini(header, body)
                         break;
                 }
             })
+            var name = new URL(url).pathname.split("/").pop();
+            var datauri = "data:"+meta+";name="+name+";base64,"+body;
             switch(type.trim())
             {
                 case "text/gemini":
@@ -110,12 +116,11 @@ function parseGemini(header, body)
                     var page = decodeURIComponent(escape(atob(body)));
                     document.open(meta, "replace");
                     document.write(page);
-                    // TODO: rewrite links? default case?
+                    // TODO: rewrite links?
                     document.close();
                     break;
                 // TODO: markdown? more types?
-                default: // TODO: make it better, idk
-                    var name = new URL(url).pathname.split("/").pop();
+                default:
                     if(type.startsWith("text/"))
                     {
                         var page = decodeURIComponent(escape(atob(body)));
@@ -124,7 +129,7 @@ function parseGemini(header, body)
                     else if(type.startsWith("image/"))
                     {
                         var img = document.createElement('img');
-                        img.src = "data:"+meta+";name="+name+";base64,"+body;
+                        img.src = datauri;
                         document.body.appendChild(img);
                     }
                     else if(type.startsWith("audio/"))
@@ -132,7 +137,7 @@ function parseGemini(header, body)
                         var audio = document.createElement('audio');
                         audio.setAttribute("controls", true);
                         audio.setAttribute("type", type);
-                        audio.src = "data:"+meta+";name="+name+";base64,"+body;
+                        audio.src = datauri;
                         document.body.appendChild(audio);
                     }
                     else if(type.startsWith("video/"))
@@ -140,7 +145,7 @@ function parseGemini(header, body)
                         var video = document.createElement('video');
                         audio.setAttribute("controls", true);
                         audio.setAttribute("type", type);
-                        video.src = "data:"+meta+";name="+name+";base64,"+body;
+                        video.src = datauri;
                         document.body.appendChild(video);
                     }
                     else
@@ -157,7 +162,7 @@ function parseGemini(header, body)
                         document.body.style.overflow = "hidden";
                         document.body.appendChild(embed);*/
                         chrome.downloads.download({
-                            url: "data:"+meta+";name="+name+";base64,"+body,
+                            url: datauri,
                             saveAs: true,
                             filename: name
                         });
@@ -181,7 +186,8 @@ function parseGemini(header, body)
         default: // 4x, 5x and 6x codes
             addNode('h1', header);
     }
-    var context = chrome.contextMenus.create({title: "Save raw..."})
+    // TODO: context menus
+    //var context = chrome.contextMenus.create({title: "Save raw..."})
 }
 
 // TODO: put parsers in its own classes and make it rely less on document.body?
