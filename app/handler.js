@@ -35,7 +35,10 @@ function main(opts) {
     port.onMessage.addListener(function(response) {
         console.log(response);
         if(response.error)
+        {
             addNode('h1', response.error);
+            port.disconnect();
+        }
         else if(response.header)
             header = response.header.trim();
         else if(response.data)
@@ -44,6 +47,15 @@ function main(opts) {
         {
             parseGemini(header, data);
             port.disconnect();
+        }
+        else if(response.favicon !== undefined)
+        {
+            var icon = createNode('div', response.favicon);
+            twemoji.parse(icon);
+            var img = icon.querySelector('img');
+            if(img)
+                document.head.querySelector('link[rel=icon]').href = img.src;
+            // TODO: cache icon, or lack thereof, for no more than an hour
         }
     });
     port.onDisconnect.addListener(function() {
@@ -56,7 +68,10 @@ function main(opts) {
             console.error("Error: " + err.message);
         }
     });
-    port.postMessage({"url": url}); // TODO: send client certificate here as well
+    port.postMessage({
+        "url": url,
+        "favicon": true // TODO: set to false when a cached favicon is found
+    }); // TODO: send client certificate here as well
     console.log("Started request to " + url);
 }
 
@@ -195,6 +210,7 @@ function parseGmi(lines)
 {
     var currentPre = null;
     var currentUl = null;
+    var title = null;
     lines.forEach(line => {
         if(currentPre == null)
         {
@@ -221,12 +237,10 @@ function parseGmi(lines)
             }
             else if(m = line.match(/^#{1,3}/))
             {
-                if(m == "###")
-                    addNode('h3', line.substring(3).trim(), true);
-                else if(m == "##")
-                    addNode('h2', line.substring(2).trim(), true);
-                else
-                    addNode('h1', line.substring(1).trim(), true);
+                var l = m[0].length;
+                addNode('h'+l, line.substring(l).trim(), true);
+                if(l == 1 && title == null)
+                    title = line.substring(l).trim();
             }                
             else if(line.startsWith(">"))
                 addNode('blockquote', line.substring(1).trim());
@@ -238,6 +252,8 @@ function parseGmi(lines)
             }
             else if(line.trim().length > 0)
                 addNode('p', line);
+            //else
+            //    document.body.appendChild(document.createElement('br'));
         }
         else
         {
@@ -269,6 +285,7 @@ function parseGmi(lines)
     });
     if(currentPre) document.body.appendChild(currentPre);
     if(currentUl) document.body.appendChild(currentUl);
+    if(title != null) document.title = title;
 }
 
 function submit()

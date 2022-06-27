@@ -34,6 +34,7 @@ namespace FutagoHost
                 while ((data = Messaging.Read()) != null)
                 {
                     var url = data["url"]?.Value<string>();
+                    var queryFavicon = data["favicon"]?.Value<bool>();
                     // TODO: get certificates
                     // TODO: support other protocols?
                     if(url != null)
@@ -45,15 +46,43 @@ namespace FutagoHost
                             string header = gemini.ReadHeader();
                             Messaging.Write("header", header);
                             string result = gemini.ReadBase64();
-                            var chunked = result.Chunk(1048544);
-                            foreach(var chunk in chunked)
-                                Messaging.Write("data", new string(chunk));
-                            Messaging.Write("end", true);
+                            if(result.Length > 0)
+                            {
+                                var chunked = result.Chunk(1048544);
+                                foreach(var chunk in chunked)
+                                    Messaging.Write("data", new string(chunk));
+                            }
                         }
                         catch(Exception e)
                         {
                             Messaging.Write("error", e.Message);
                             Console.Error.WriteLine(e.Message);
+                            queryFavicon = false;
+                        }
+
+                        if(queryFavicon == true)
+                        {
+                            UriBuilder favurl = new UriBuilder(gemini.Url);
+                            favurl.Path = "/favicon.txt";
+                            Gemini favicon = new Gemini(favurl.Uri);
+                            try
+                            {
+                                favicon.Connect();
+                                string header = favicon.ReadHeader();
+                                if(header[0] == '2')
+                                {
+                                    string icon = favicon.ReadAll();
+                                    Messaging.Write("favicon", icon);
+                                }
+                                else
+                                    Messaging.Write("favicon", false);
+                            }
+                            catch(Exception e)
+                            {
+                                Console.Error.WriteLine(e.Message);
+                                Messaging.Write("favicon", false);
+                            }
+                            Messaging.Write("end", true);
                         }
                     }
                 }
