@@ -4,19 +4,22 @@ document.addEventListener('DOMContentLoaded', function () {
         defaultPage: 'gemini://gemini.circumlunar.space/',
         rewriteLinks: true,
         redirectLimit: 5,
-        css: ''
+        css: '',
+        faviconCacheTime: 3600000,
     }, function(items) {
         $('defaultPage').value = items.defaultPage;
         $('rewriteLinks').checked = items.rewriteLinks;
         $('redirectLimit').value = items.redirectLimit;
         $('css').value = items.css;
+        $('faviconCacheTime').value = items.faviconCacheTime;
     });
     $('save').addEventListener('click', function () {
         chrome.storage.sync.set({
             defaultPage: $('defaultPage').value,
             rewriteLinks: $('rewriteLinks').checked,
             redirectLimit: $('redirectLimit').value,
-            css: $('css').value
+            css: $('css').value,
+            faviconCacheTime: $('faviconCacheTime').value,
         });
     });
     /*$('gemini_handler').addEventListener('click', function () {

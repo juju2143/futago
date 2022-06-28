@@ -3,11 +3,13 @@ document.addEventListener('DOMContentLoaded', function () {
         defaultPage: 'gemini://gemini.circumlunar.space/',
         redirectLimit: 5,
         css: '',
+        faviconCacheTime: 3600000,
     }, main);
 });
 
 var options = null;
 var url = null;
+var parsedURL = null
 
 function main(opts) {
     options = opts;
@@ -18,7 +20,7 @@ function main(opts) {
     else
         url = url.substring(1);
 
-    try { new URL(url); }
+    try { parsedURL = new URL(url); }
     catch(e)
     {
         location.search = "?"+options.defaultPage;
@@ -50,12 +52,17 @@ function main(opts) {
         }
         else if(response.favicon !== undefined)
         {
-            var icon = createNode('div', response.favicon);
-            twemoji.parse(icon);
-            var img = icon.querySelector('img');
-            if(img)
-                document.head.querySelector('link[rel=icon]').href = img.src;
-            // TODO: cache icon, or lack thereof, for no more than an hour
+            setFavicon(response.favicon);
+
+            if(!localStorage.cache) localStorage.cache = '{}';
+            var cache = JSON.parse(localStorage.cache);
+            var newURL = parsedURL;    // copy parsed URL because
+            newURL.protocol = 'http:'; // I shouldn't have to do this wtf
+            cache[newURL.host] = {
+                "favicon": response.favicon.trim(),
+                "time": Date.now()
+            }
+            localStorage.cache = JSON.stringify(cache);
         }
     });
     port.onDisconnect.addListener(function() {
@@ -68,9 +75,23 @@ function main(opts) {
             console.error("Error: " + err.message);
         }
     });
+    var fetchFavicon = true;
+    if(localStorage.cache)
+    {
+        var cache = JSON.parse(localStorage.cache);
+        var newURL = parsedURL;    // copy parsed URL because
+        newURL.protocol = 'http:'; // I shouldn't have to do this wtf
+        cachedIcon = cache[newURL.host];
+        if(cachedIcon)
+        if(Date.now() - cachedIcon.time < options.faviconCacheTime)
+        {
+            fetchFavicon = false;
+            setFavicon(cachedIcon.favicon);
+        }
+    }
     port.postMessage({
         "url": url,
-        "favicon": true // TODO: set to false when a cached favicon is found
+        "favicon": fetchFavicon
     }); // TODO: send client certificate here as well
     console.log("Started request to " + url);
 }
@@ -344,4 +365,13 @@ function resolveLink(href, friendly)
     if(theurl.protocol == "gemini:" && friendly)
         newhref = "/handler.html?"+newhref;
     return newhref;
+}
+
+function setFavicon(text)
+{
+    var icon = createNode('div', text);
+    twemoji.parse(icon);
+    var img = icon.querySelector('img');
+    if(img)
+        document.head.querySelector('link[rel=icon]').href = img.src;
 }

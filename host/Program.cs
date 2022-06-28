@@ -75,15 +75,15 @@ namespace FutagoHost
                                     Messaging.Write("favicon", icon);
                                 }
                                 else
-                                    Messaging.Write("favicon", false);
+                                    Messaging.Write("favicon", "");
                             }
                             catch(Exception e)
                             {
                                 Console.Error.WriteLine(e.Message);
-                                Messaging.Write("favicon", false);
+                                Messaging.Write("favicon", "");
                             }
-                            Messaging.Write("end", true);
                         }
+                        Messaging.Write("end", true);
                     }
                 }
             }
