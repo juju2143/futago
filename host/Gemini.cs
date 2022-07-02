@@ -9,7 +9,24 @@ namespace FutagoHost
     class Gemini
     {
         public Uri Url { get; set; }
+        public X509CertificateCollection ClientCertificates = null;
+        public X509Certificate ServerCertificate
+        {
+            get => _serverCertificate;
+        }
+        X509Certificate _serverCertificate = null;
+        TcpClient client;
         SslStream sslStream;
+        public Gemini(string url, X509CertificateCollection certificates)
+        {
+            Url = new Uri(url);
+            ClientCertificates = certificates;
+        }
+        public Gemini(Uri url, X509CertificateCollection certificates)
+        {
+            Url = url;
+            ClientCertificates = certificates;
+        }
         public Gemini(string url)
         {
             Url = new Uri(url);
@@ -24,20 +41,29 @@ namespace FutagoHost
               X509Chain chain,
               SslPolicyErrors sslPolicyErrors)
         {
-            if (sslPolicyErrors == SslPolicyErrors.None)
-                return true;
+            /* if (sslPolicyErrors == SslPolicyErrors.None)
+                return true; */
             // TODO: validate user certificates
             //Console.WriteLine("Certificate error: {0}", sslPolicyErrors);
+            _serverCertificate = certificate;
             return true;
         }
         public void Connect()
         {
             var port = Url.Port;
             if(port < 0) port = 1965;
-            TcpClient client = new TcpClient(Url.DnsSafeHost, port);
+            client = new TcpClient(Url.DnsSafeHost, port);
             sslStream = new SslStream(client.GetStream(), false,
                 new RemoteCertificateValidationCallback(ValidateServerCertificate), null);
-            sslStream.AuthenticateAsClient(Url.Host);
+            try
+            {
+                sslStream.AuthenticateAsClient(Url.Host, ClientCertificates, SslProtocols.Tls13, false);
+            }
+            catch(AuthenticationException e)
+            {
+                client.Close();
+                throw e;
+            }
             byte[] message = Encoding.UTF8.GetBytes(Url.AbsoluteUri+"\r\n");
 
             sslStream.Write(message);
@@ -54,10 +80,7 @@ namespace FutagoHost
             } while(b != 10 && b != -1);
             return message.ToString();
         }
-        public int Read(byte[] buffer, int offset, int count)
-        {
-            return sslStream.Read(buffer, offset, count);
-        }
+        public int Read(byte[] buffer, int offset, int count) => sslStream.Read(buffer, offset, count);
         public string ReadAll()
         {
             byte[] buffer = new byte[2048];
@@ -90,5 +113,6 @@ namespace FutagoHost
 
             return Convert.ToBase64String(array.ToArray());
         }
+        public void Close() => client.Close();
     }
 }

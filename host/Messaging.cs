@@ -18,10 +18,10 @@ namespace FutagoHost
             var buffer = new char[length];
             using (var reader = new StreamReader(stdin))
             {
-                while (reader.Peek() >= 0)
-                {
-                    reader.Read(buffer, 0, buffer.Length);
-                }
+                var count = reader.Read(buffer, 0, buffer.Length);
+                Console.Error.WriteLine("read {0} bytes", count);
+                //Console.Error.WriteLine(buffer);
+                if(count == 0) return null;
             }
 
             return (JObject)JsonConvert.DeserializeObject<JObject>(new string(buffer));

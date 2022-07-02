@@ -4,6 +4,9 @@ document.addEventListener('DOMContentLoaded', function () {
         redirectLimit: 5,
         css: '',
         faviconCacheTime: 3600000,
+        debug: false,
+        certificate: null,
+        privateKey: null,
     }, main);
 });
 
@@ -35,12 +38,15 @@ function main(opts) {
     var header = "";
     var data = "";
     port.onMessage.addListener(function(response) {
-        console.log(response);
+        if(options.debug)
+            console.log(response);
         if(response.error)
         {
             addNode('h1', response.error);
             port.disconnect();
         }
+        else if(response.log)
+            console.log(response.log);
         else if(response.header)
             header = response.header.trim();
         else if(response.data)
@@ -83,15 +89,17 @@ function main(opts) {
         newURL.protocol = 'http:'; // I shouldn't have to do this wtf
         cachedIcon = cache[newURL.host];
         if(cachedIcon)
-        if(Date.now() - cachedIcon.time < options.faviconCacheTime)
-        {
-            fetchFavicon = false;
-            setFavicon(cachedIcon.favicon);
-        }
+            if(Date.now() - cachedIcon.time < options.faviconCacheTime)
+            {
+                fetchFavicon = false;
+                setFavicon(cachedIcon.favicon);
+            }
     }
     port.postMessage({
         "url": url,
-        "favicon": fetchFavicon
+        "favicon": fetchFavicon,
+        "cert": options.certificate,
+        "key": options.privateKey,
     }); // TODO: send client certificate here as well
     console.log("Started request to " + url);
 }
@@ -139,7 +147,7 @@ function parseGemini(header, body)
                         break;
                 }
             })
-            var name = new URL(url).pathname.split("/").pop();
+            var name = parsedURL.pathname.split("/").pop();
             var datauri = "data:"+meta+";name="+name+";base64,"+body;
             switch(type.trim())
             {
@@ -312,7 +320,7 @@ function parseGmi(lines)
 function submit()
 {
     var input = encodeURIComponent(document.querySelector('input').value);
-    var theurl = new URL(url);
+    var theurl = parsedURL;
     theurl.search = "?"+input;
     location.search = "?"+theurl.toString();
 }
