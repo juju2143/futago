@@ -26,9 +26,33 @@ dotnet build
 
 ### Install
 
-TODO: create an installer
+Google Chrome:
+```sh
+dotnet run -- install
+```
 
-`install.sh` should work on macOS and Linux, Windows also needs registry keys
+For different browsers:
+
+On Linux and MacOS, locate your browser's `NativeMessagingHosts` directory (in this example Chromium), then:
+```sh
+dotnet run -- install --dir ~/.config/chromium/NativeMessagingHosts # Linux
+dotnet run -- install --dir ~/Library/Application Support/Chromium/NativeMessagingHosts # MacOS
+```
+
+On Windows, the path does not matter since the browser uses the registry to locate the manifest file. By default, it's written in the current directory. You can use `--all` to install the app for all users instead of the current user only.
+
+For more options see
+```sh
+dotnet run -- install --help
+```
+
+### Uninstall
+
+Same notes as the above. Use the same `--dir`, `--name` and `--all` options you used to install it.
+
+```sh
+dotnet run -- uninstall
+```
 
 ## The extension
 
@@ -41,7 +65,7 @@ Compatible with the most popular browsers like Chrome, Firefox and Edge, it comm
 - `npm install` to download third-party js libraries
 - Go to `chrome://extensions`
 - Enable developer mode
-- Click on "Load unpackaged extension"
+- Click on "Load unpackaged"
 - Navigate to this repo's `app` directory
 - Have fun
 

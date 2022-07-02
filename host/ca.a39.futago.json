@@ -1,9 +1,0 @@
-{
-    "name": "ca.a39.futago",
-    "description": "Futago for Chrome Host",
-    "path": "HOST_PATH",
-    "type": "stdio",
-    "allowed_origins": [
-        "chrome-extension://miboeaafijfjhncaapbmmipeaeobomnh/"
-    ]
-}

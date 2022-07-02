@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using Microsoft.Win32;
+using Newtonsoft.Json.Linq;
 using System.CommandLine;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -18,6 +19,27 @@ namespace FutagoHost
             var certOption = new Option<FileInfo>("--cert", "Attach a client certificate");
             var keyOption = new Option<FileInfo>("--key", "Private key for the certificate");
 
+            // Installer/uninstaller subcommand arguments
+            var dirOption = new Option<DirectoryInfo>("--dir", ()=>{
+                if(OperatingSystem.IsLinux())
+                    if(Environment.UserName == "root")
+                        return new DirectoryInfo("/etc/opt/chrome/native-messaging-hosts");
+                    else
+                        return new DirectoryInfo(Environment.GetEnvironmentVariable("HOME")+"/.config/google-chrome/NativeMessagingHosts");
+                else if(OperatingSystem.IsMacOS())
+                    if(Environment.UserName == "root")
+                        return new DirectoryInfo("/Library/Google/Chrome/NativeMessagingHosts");
+                    else
+                        return new DirectoryInfo(Environment.GetEnvironmentVariable("HOME")+"/Library/Application Support/Google/Chrome/NativeMessagingHosts");
+                return new DirectoryInfo(".");
+            }, "Target directory");
+            var nameOption = new Option<string>("--name", ()=>"ca.a39.futago", "Application name");
+            var descriptionOption = new Option<string>("--description", ()=>"Futago Native Messaging Host", "Application description");
+            var originOption = new Option<string>("--origins", ()=>"chrome-extension://miboeaafijfjhncaapbmmipeaeobomnh/", "Comma-separated list of allowed origins");
+            var dumpOption = new Option<bool>("--dump", "Prints the JSON manifest to stdout");
+            var dryRunOption = new Option<bool>("--dry-run", "Don't do anything");
+            var allOption = new Option<bool>("--all", "Install for all users"){ IsHidden = !OperatingSystem.IsWindows() };
+
             var rootCommand = new RootCommand("Futago Native Messaging host app");
             rootCommand.Add(originArgument);
             rootCommand.Add(parentWindowOption);
@@ -30,10 +52,76 @@ namespace FutagoHost
             test.SetHandler(Test, urlArgument, certOption, keyOption);
             rootCommand.Add(test);
 
-            //var install = new Command("install", "Registers native messaging host with your browser");
-            //var uninstall = new Command("uninstall", "Unregisters native messaging host in your browser");
+            var install = new Command("install", "Registers native messaging host with your browser");
+            install.Add(dirOption);
+            install.Add(nameOption);
+            install.Add(descriptionOption);
+            install.Add(originOption);
+            install.Add(allOption);
+            install.Add(dumpOption);
+            install.Add(dryRunOption);
+            install.SetHandler(Install, dirOption, nameOption, descriptionOption, originOption, dumpOption, dryRunOption, allOption);
+            rootCommand.Add(install);
+
+            var uninstall = new Command("uninstall", "Unregisters native messaging host from your browser");
+            uninstall.Add(dirOption);
+            uninstall.Add(nameOption);
+            uninstall.Add(allOption);
+            uninstall.Add(dryRunOption);
+            uninstall.SetHandler(Uninstall, dirOption, nameOption, dryRunOption, allOption);
+            rootCommand.Add(uninstall);
 
             return rootCommand.InvokeAsync(argv).Result;
+        }
+        public static void Install(DirectoryInfo dir, string name, string description, string origin, bool dump, bool dryRun, bool all)
+        {
+            JObject json = JObject.FromObject(new{
+                name = name,
+                description = description,
+                path = System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName,
+                type = "stdio",
+                allowed_origins = origin.Split(',')
+            });
+            var fileName = dir.FullName + Path.DirectorySeparatorChar + name + ".json";
+            if(dump) Console.WriteLine(json.ToString());
+            if(!dryRun)
+                try
+                {
+                    if(!dir.Exists) dir.Create();
+                    File.WriteAllText(fileName, json.ToString());
+
+                    if(OperatingSystem.IsWindows())
+                    {
+                        RegistryKey reg = all ? Registry.LocalMachine : Registry.CurrentUser;
+                        using(RegistryKey key = reg.CreateSubKey(@"SOFTWARE\Google\Chrome\NativeMessagingHosts\"+name))
+                        {
+                            key.SetValue(null, fileName, RegistryValueKind.String);
+                        }
+                    }
+                }
+                catch(Exception e)
+                {
+                    Console.Error.WriteLine(e.Message);
+                }
+        }
+        public static void Uninstall(DirectoryInfo dir, string name, bool dryRun, bool all)
+        {
+            var fileName = dir.FullName + Path.DirectorySeparatorChar + name + ".json";
+            if(!dryRun)
+                try
+                {
+                    File.Delete(fileName);
+                    
+                    if(OperatingSystem.IsWindows())
+                    {
+                        RegistryKey reg = all ? Registry.LocalMachine : Registry.CurrentUser;
+                        reg.DeleteSubKey(@"SOFTWARE\Google\Chrome\NativeMessagingHosts\"+name, false);
+                    }
+                }
+                catch(Exception e)
+                {
+                    Console.Error.WriteLine(e.Message);
+                }
         }
         public static void Test(string url, FileInfo cert, FileInfo key)
         {
